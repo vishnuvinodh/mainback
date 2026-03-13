@@ -7,6 +7,8 @@ import addpro from '../Models/addpro.js';
 import mongoose from 'mongoose';
 import Request from '../Models/Request.js';
 import { request } from 'express';
+import expertModel from '../Models/expertModel.js';
+import SubscriptionPlan from '../Models/subscription.js';
 
 const register = async (req, res) => {
   try {
@@ -259,16 +261,18 @@ const getAgentProperties = async (req, res) => {
   }
 };
 
- const allProperties = async (req, res) => {
+const allProperties = async (req, res) => {
   try {
-    const properties = await addpro.find(); 
+    const properties = await addpro
+      .find({ status: "available" })   // ✅ filter here
+      .sort({ createdAt: -1 });        // ✅ newest first (professional)
+
     res.status(200).json(properties);
   } catch (error) {
     console.error("ALL PROPERTIES ERROR:", error);
     res.status(500).json({ message: "Failed to fetch properties" });
   }
 };
-
 
 const buyproperty = async (req, res) => {
   const { id } = req.params;
@@ -593,10 +597,194 @@ const getAllPropertiesForAdmin = async (req, res) => {
   }
 };
 
+const addExpert = async (req, res) => {
+  try {
+    // 1. Added 'phone' to the destructured body
+    const { name, title, experience, languages, phone } = req.body;
 
+    // Check if file exists to prevent errors
+    const image = req.file ? req.file.filename : "";
+
+    // 2. Added 'phone' to the new model instance
+    const expert = new expertModel({
+      name,
+      title,
+      experience,
+      languages,
+      phone, // <--- This line saves the number to MongoDB
+      image
+    });
+
+    await expert.save();
+
+    res.json({ success: true, message: "Expert added successfully" });
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Error adding expert" });
+  }
+};
+
+const getExperts = async (req, res) => {
+
+  try {
+
+    const experts = await expertModel.find();
+
+    res.status(200).json(experts);
+
+  } catch (error) {
+
+    console.log(error);
+    res.status(500).json({ message: "Error fetching experts" });
+
+  }
+
+};
+
+ const deleteExpert = async (req, res) => {
+  try {
+
+    const { id } = req.params;
+
+    const expert = await expertModel.findByIdAndDelete(id);
+
+    if (!expert) {
+      return res.status(404).json({ message: "Expert not found" });
+    }
+
+    res.status(200).json({ message: "Expert deleted successfully" });
+
+  } catch (error) {
+
+    console.log(error);
+    res.status(500).json({ message: "Server error" });
+
+  }
+};
+const updateExpert = async (req, res) => {
+  try {
+    const { name, title, experience, languages, phone } = req.body;
+    let updateData = { name, title, experience, languages, phone };
+
+    if (req.file) {
+      updateData.image = req.file.filename;
+    }
+
+    const updatedExpert = await expertModel.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
+
+    res.json({ message: "Expert updated successfully", data: updatedExpert });
+  } catch (error) {
+    res.status(500).json({ message: "Error updating expert" });
+  }
+};
+// Add 'export const' at the beginning
+export const createPlan = async (req, res) => {
+  try {
+    const { title, planType, role, monthlyPrice, features } = req.body;
+
+    // Logic for calculating yearly price (20% discount)
+    const standardYearly = monthlyPrice * 12;
+    const discountedYearly = Math.round(standardYearly * 0.80);
+
+    let propertyLimit = "N/A";
+
+    if (role === "Agent") {
+      propertyLimit = planType === "Gold"
+        ? "30 Properties"
+        : "Unlimited Properties";
+    }
+
+    // Ensure 'SubscriptionPlan' matches the name you used in your import statement!
+    const plan = new SubscriptionPlan({
+      title,
+      planType,
+      role,
+      monthlyPrice,
+      yearlyPrice: discountedYearly,
+      propertyLimit,
+      features
+    });
+
+    await plan.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Plan created successfully",
+      data: plan
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getPlans = async (req, res) => {
+  try {
+    const plans = await SubscriptionPlan.find();
+    res.json({
+      success: true,
+      data: plans
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const updatePlan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { monthlyPrice, role, planType } = req.body;
+
+    // Recalculate values in case price/type changed
+    const standardYearly = monthlyPrice * 12;
+    const discountedYearly = Math.round(standardYearly * 0.80);
+    
+    let propertyLimit = "N/A";
+    if (role === "Agent") {
+      propertyLimit = planType === "Gold" ? "30 Properties" : "Unlimited Properties";
+    }
+
+    const updated = await SubscriptionPlan.findByIdAndUpdate(
+      id,
+      { 
+        ...req.body, 
+        yearlyPrice: discountedYearly, 
+        propertyLimit 
+      },
+      { new: true }
+    );
+
+    res.json({
+      success: true,
+      message: "Plan updated successfully",
+      data: updated
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const deletePlan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await SubscriptionPlan.findByIdAndDelete(id);
+    res.json({
+      success: true,
+      message: "Plan deleted successfully"
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 
 export { register,login,profile,updateuser,userlist,feedsubmit,feedviwe,updateagent,
   Agentprofile,addproperty,updateProperty,getAgentProperties,allProperties,buyproperty,
   sendRequestToAgent,getAgentRequests,requestStatus,updatePropertyStatus,closeDeal,agentlist,
-   blockUser,deleteUser,adminDashboard,getAllPropertiesForAdmin};
+   blockUser,deleteUser,adminDashboard,getAllPropertiesForAdmin,addExpert,getExperts,deleteExpert,updateExpert,getPlans,updatePlan,deletePlan};
+    

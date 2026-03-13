@@ -1,6 +1,6 @@
 import express from "express";
-import { addproperty, adminDashboard, agentlist, Agentprofile, allProperties, blockUser, buyproperty, closeDeal, deleteUser, feedsubmit, feedviwe, getAgentProperties,getAgentRequests,getAllPropertiesForAdmin,login,
- profile, register, requestStatus, sendRequestToAgent, updateagent, updateProperty, updatePropertyStatus, updateuser, userlist } from "../controller/usercontroller.js"; 
+import { addExpert, addproperty, adminDashboard, agentlist, Agentprofile, allProperties, blockUser, buyproperty, closeDeal, createPlan, deleteExpert, deletePlan, deleteUser, feedsubmit, feedviwe, getAgentProperties,getAgentRequests,getAllPropertiesForAdmin,getExperts,getPlans,login,
+ profile, register, requestStatus, sendRequestToAgent, updateagent, updateExpert, updatePlan, updateProperty, updatePropertyStatus, updateuser, userlist } from "../controller/usercontroller.js"; 
 import { uplode } from "../multer.js";
 import verifyToken from "../Middleware/verifyToken.js";
 import verifyAdmin from "../Middleware/verifyAdmin.js";
@@ -32,5 +32,13 @@ userrouter.put("/block/:id", verifyToken, verifyAdmin, blockUser);
 userrouter.delete("/delete/:id", verifyToken, verifyAdmin, deleteUser);
 userrouter.get("/admin/dashboard", verifyToken, verifyAdmin, adminDashboard);
 userrouter.get("/admin/properties", verifyToken, verifyAdmin, getAllPropertiesForAdmin);
+userrouter.post("/add-expert", uplode.single("image"), addExpert);
+userrouter.get("/experts", getExperts);
+userrouter.delete("/delete-expert/:id", deleteExpert);
+userrouter.put("/update-expert/:id", uplode.single("image"), updateExpert);
+userrouter.post("/create-plan", createPlan);
+userrouter.get("/get-plans", getPlans);
+userrouter.put("/update-plan/:id", updatePlan);
+userrouter.delete("/delete-plan/:id", deletePlan);
 
 export default userrouter;
